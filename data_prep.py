@@ -98,9 +98,9 @@ class Prepare_Reviews(object):
     def tagger(corpus, tags: list = None) -> list:
         """takes a corpus and tages it."""
         if tags is None:
-            tagged_docs = [TaggedDocument(wrds, idx) for idx, wrds in enumerate(corpus)] 
+            tagged_docs = [TaggedDocument(words = wrds, tags =  [idx]) for idx, wrds in enumerate(corpus)] 
         else:
-            tagged_docs = [TaggedDocument(corpus[x], tags[x]) for x in range(len(corpus))]
+            tagged_docs = [TaggedDocument(words = corpus[x], tags = tags[x]) for x in range(len(corpus))]
         return tagged_docs
 
     def label_reviews(self, X_train, X_test, unlab_reviews):

@@ -2,7 +2,7 @@
 import numpy as np
 
 # Gensim imports
-import gensim
+from gensim.models import Doc2Vec
 
 # Scikit-learn imports
 from sklearn.linear_model import SGDClassifier
@@ -15,10 +15,10 @@ from sklearn.metrics import roc_curve
 import matplotlib.pyplot as plt
 
 # Miscellaneous imports
-import os
+from os import mkdir, getcwd
 from os.path import isfile, isdir
 from random import shuffle
-import cPickle
+
 
 
 class Vectorize_Reviews(object):
@@ -26,20 +26,16 @@ class Vectorize_Reviews(object):
     The Reviews2Vec class trains a doc2vec model on the corpus of reviews and returns a feature matrix of doc2vec
     vectors for training predictive models.
     """
-    def __init__(self, X_train, Y_train, X_test, Y_test
-				 model_name: str = 'Doc2VecModel', path: str = None,
-                 vec_size: int =400, min_count: int =1, window: int =10, sample: float =1e-3,
-                 negative: int =5, workers: int =4, dm:int =1, epochs: int=5,
-                 model: gensim.model.doc2vec = None):
+    def __init__(self, Reviews, model_name: str = 'Doc2VecModel', path: str = None, 
+                 vec_size: int =200, min_count: int =10, window: int =10, sample: float =1e-5,
+                 negative: int =5, workers: int =4, dm:int =1, epochs: int=10,
+                 model: Doc2Vec = None):
         # Define data structures as class variables
-        self.X_train = X_train
-        self.Y_train = Y_train
-        self.X_test = X_test
-        self.Y_test = Y_test
+        self.Reviews = Reviews
         
         # system processes
         if path is None:
-			self.path = os.getcwd() + '/'
+            self.path = getcwd() + '/'
 
         # Define internal Doc2vec parameters
         self.vec_size = vec_size
@@ -57,31 +53,32 @@ class Vectorize_Reviews(object):
 
 
     @staticmethod
-    def shuffle_lists(X, Y):
+    def shuffle_lists(X):
         # Shuffle X and Y while maintaining index coordination
-        X_shuf, Y_shuf = [], []
-        idx_list = range(len(X))
+        X_shuf = []
+        idx_list = np.arange(len(X)).tolist()
         shuffle(idx_list)
         for idx in idx_list:
             X_shuf.append(X[idx])
-            Y_shuf.append(Y[idx])
-        return X_shuf, Y_shuf
+        return X_shuf
 
 
-    def review_to_vec(self, model, review):
+    def review_to_vec(self, model: Doc2Vec = None, review: list = None):
         # Convert review to vector using trained model
-        if self.model is None:
-			print('No Model to use')
-			return(False)
-		
-        vec = np.array(model.infer_vector(review.words)).reshape((1, self.vec_size))
-
+        if model is None:
+            if self.model is None:
+                print('No Model to use')
+                return(False)
+            else:
+                vec = np.array(self.model.infer_vector(review.words)).reshape((1, self.vec_size)) # TODO CHECK if this flows through correctly
+        else:
+                vec = np.array(model.infer_vector(review.words)).reshape((1, self.vec_size)) # TODO CHECK if this flows through correctly
         return vec
 
 
     def corpus_to_vec(self, model, corpus):
         # Get list of doc2vec vectors from corpus
-        vecs = [self.review_to_vec(model, review) for review in corpus]
+        vecs = [self.review_to_vec(self.model, review) for review in corpus]
 
         # Convert list to numpy array
         vec_arr = np.concatenate(vecs)
@@ -91,90 +88,95 @@ class Vectorize_Reviews(object):
 
     def build_vocabulary(self):
         # Initialize doc2vec distributed memory object
-        model = gensim.models.Doc2Vec(min_count=self.min_count,
+        self.model = Doc2Vec(min_count=self.min_count,
                                       window=self.window,
-                                      size=self.vec_size,
+                                      vector_size=self.vec_size,
                                       sample=self.sample,
                                       negative=self.negative,
                                       workers=self.workers,
                                       dm=self.dm)
-
+        print("Building vocabulary...\n")
         # Build vocabulary over all reviews
-        print "Building vocabulary...\n"
-        all_reviews = self.X_train + self.X_test
-        model.build_vocab(all_reviews)
+        self.model.build_vocab(self.Reviews)
+        return(True)
 
-        return model
+    def train_on_reviews(self, model: Doc2Vec = None, X: list = None):
+        """Run through the dataset multiple times, shuffling the data each time to improve accuracy"""
+        
+        if X is None:
+            X_orig = None
+            X = self.Reviews
+        else:
+            X_orig = X.copy()
 
-
-    def train_on_reviews(self, model, X, Y):
-        # Run through the dataset multiple times, shuffling the data each time to improve accuracy
         for epoch in range(self.epochs):
-            print "Training epoch: {0}/{1}".format(epoch+1, self.epochs)
-            model.train(X)
-
+            print("Training epoch: {0}/{1}".format(epoch+1, self.epochs))
+            if model is None:
+                self.model.train(X, total_examples=self.model.corpus_count, epochs=self.epochs)
+            else:
+                model.train(X, total_examples=model.corpus_count)
             # Shuffle data
-            print "Shuffling data..."
-            X, Y = self.shuffle_lists(X, Y)
+            print("Shuffling data...")
+            X = self.shuffle_lists(X)
 
-        print "Calculating doc2vec vectors..."
-        train_vecs = self.corpus_to_vec(model, X)
-        print "Done training...\n"
+        print("Calculating doc2vec vectors...")
+        if X_orig is None:
+            doc2vec_vecs = self.corpus_to_vec(model, self.Reviews)
+        else:
+            doc2vec_vecs = self.corpus_to_vec(model, X_orig)
+        print("Done training...\n")
+        
+        if model is None:
+            return(doc2vec_vecs)
+        else:
+            return(doc2vec_vecs, model)
+        self.model.save(model_path + '/' + model_name)
+        print('Model Saved')
+        return(True)
 
-        return train_vecs, model, X, Y
+    def train_doc2vec(self, model: Doc2Vec = None, Data: list = None, force = False):
+        """Prep function to train model"""
+        print('Initilizng training model')
+        
+        self.build_vocabulary()
+        if model is None:
+            print("Training doc2vec model on intenral model...")
+            train_vecs = self.train_on_reviews(X = Data)
+            return(train_vecs)
+        else:
+            print("Training doc2vec model on external model...")
+            test_vecs, model = self.train_on_reviews(model=model, X = Data)
+            return(train_vecs, model)        
 
-	def load_model(self):
-		"""loads a doc2vec file"""
-		model_file = self.path + 'model/' + self.modelID + '.doc2vec'
-		if isfile(model_file):
-			self.model = gensim.models.Doc2Vec.load(model_file)
-			print('Model Loaded')
-			return(True)
-		else:
-			print('Model %s not found at %s' % (self.modelID + '.doc2vec', self.path + 'model/')) 
-			return(False)
+    def extract_model(self):
+        """returns the model that was generated"""
+        return(self.model)
+
+    def load_model(self):
+        """loads a doc2vec file"""
+        model_file = self.path + 'model/' + self.modelID + '.doc2vec'
+        if isfile(model_file):
+            self.model = Doc2Vec.load(model_file)
+            print('Model Loaded')
+            return(True)
+        else:
+            print('Model %s not found at %s' % (self.modelID + '.doc2vec', self.path + 'model/'))
+            return(False)
 			
-	def save_model(self):
-		"""saves a doc2vec model"""
-		model_path = self.path + 'model' 
-		model_name = self.modelID + '.doc2vec'
-		if self.model is None:
-			print('No model to save')
-			return(False)
-			
-		if !os.path.isdir(model_path):
-			os.makedir(model_path)
-			
-		self.model.save(model_path + '/' + model_name)
-		print('Model Saved')
-		return(True)
+    def save_model(self):
+        """saves a doc2vec model"""
+        model_path = self.path + 'model' 
+        model_name = self.modelID + '.doc2vec'
+        if self.model is None:
+            print('No model to save')
+            return(False)
+        if ~isdir(model_path):
+            mkdir(model_path)
+        self.model.save(model_path + '/' + model_name)
+        return(True)
 
-    def train_doc2vec(self, force = False):
-		"""Prep function to train model"""
-		print('training model')
- 
-		model = self.build_vocabulary()
-
-		# Train doc2vec model and get semantic vectors for training set
-		print "Training doc2vec model on training dataset..."
-		(train_vecs,
-		 model,
-		 self.X_train,
-		 self.Y_train) = self.train_on_reviews(model=model,
-													 X=self.X_train,
-													 Y=self.Y_train)
-
-		# Extend doc2vec model training and get semantic vectors for testing set
-		print "Training doc2vec model on testing dataset..."
-		test_vecs, model, self.X_test, self.Y_test, _ = self.train_on_reviews(model=model,
-																			  X=self.X_test,
-																			  Y=self.Y_test)
-
-		return (train_vecs,
-				self.Y_train,
-				test_vecs,
-				self.Y_test)
-
+VR = Vectorize_Reviews(df['tagged'])
+VR.train_doc2vec()
 
 class Classify_Reviews(object):
     """
