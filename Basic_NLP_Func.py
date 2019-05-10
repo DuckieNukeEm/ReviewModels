@@ -1,13 +1,13 @@
 import re
 import pandas as pd
-
+import lint
 
 def get_punctuation_string():
 	return("""\!|\#|\$|\%|\&|\(|\)|\*|\+|\,|\-|\.|\/|\:|\;|\<|\=|\>|\?|\@|\[|\]|\^|\_|\`|\{|\||\}|\~""")
 
-def ranks_stopwords() -> list:
-    	"""returns a list of common stop words
-    	https://www.ranks.nl/stopwords"""
+def ranks_stopwords(None) -> List:
+	"""returns a list of common stop words
+	https://www.ranks.nl/stopwords"""
 	#todo have it read in a list of stop words
 	slist = ['a','A','about','above','after','again','against','all','am','an','and','any','are',"aren't","as","at",'be','because','been','before','being','below','between','both','but','by',"can't",
 'cannot','could',"couldn't",'did','didn\'t','do','does','doesn\'t','doing','don\'t','down','during','each','few','for','from','further','had','hadn\'t','has','hasn\'t','have','haven\'t','having','he','he\'d','he\'ll',
@@ -21,20 +21,20 @@ def ranks_stopwords() -> list:
 
 
 def pivot_lists(df: pd.Series, col_to_pivot: str = None) -> pd.DataFrame:
-        """a function that takes a series of lists, and then pivots it out so each element of the list is in
-        it's own row. """
-        if col_to_pivot == None:
-                col_to_pivot = df.name
-        df = df.to_frame(name = df.name).reset_index().query("index != 'index'").copy()
+	"""a function that takes a series of lists, and then pivots it out so each element of the list is in
+	it's own row. """
+	if col_to_pivot == None:
+			col_to_pivot = df.name
+	df = df.to_frame(name = df.name).reset_index().query("index != 'index'").copy()
 
-        #https://stackoverflow.com/questions/42012152/unstack-a-pandas-column-containing-lists-into-multiple-rows
-        df = pd.DataFrame({
-                col:np.repeat(df[col].values, df[col_to_pivot].str.len())
-                for col in df.columns.difference([col_to_pivot])
-                }).assign(**{col_to_pivot:np.concatenate(df[col_to_pivot].values)})[df.columns.tolist()]
+	#https://stackoverflow.com/questions/42012152/unstack-a-pandas-column-containing-lists-into-multiple-rows
+	df = pd.DataFrame({
+			col:np.repeat(df[col].values, df[col_to_pivot].str.len())
+			for col in df.columns.difference([col_to_pivot])
+			}).assign(**{col_to_pivot:np.concatenate(df[col_to_pivot].values)})[df.columns.tolist()]
 
-        df['Sentence_Number'] = df.groupby(['index']).cumcount()
-        return(df)
+	df['Sentence_Number'] = df.groupby(['index']).cumcount()
+	return(df)
 
 def split_into_sentences(df: pd.Series) -> pd.DataFrame:
 	col_name = df.name

@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+<<<<<<< HEAD
 import gzip
 import numpy as np
 from multiprocessing import cpu_count, Pool #,parallel
@@ -58,6 +59,11 @@ def getDF(PATH: str, SAVE_PATH: str, chunk_size: int = 100000, headers:list = []
 					df_out.to_csv(f, header = False, sep = '|', index = False)
 			i = 0
 			df = {}
+=======
+import Basic_NLP_Func as bnf
+import ReadWrite as RW
+
+>>>>>>> d29e2fd45f0c7271d4218ae06bca35a8559a6e33
 
 def simple_tagger(tag):
 	""" takes a tag and simpleifies it down to four tags (or five) tags
@@ -135,10 +141,16 @@ if False: #chagnge to True to unzip the user_dedup.json.gz or metadata.json.gz
 
 if True: # change to True if you want to lowercase, split, lemmatize, then join sentences
 
+<<<<<<< HEAD
 	PATH = '~/R/Data/ARD/amazon_review_data.txt'
 	SAVE_PATH = '~/R/Data/ARD/ARD_clean_reviews.txt'
 	CHUNKSIZE = 1000000
 	ITTER_STEPS = 20
+=======
+def chunk_tfidf(df: df.series, tf_dict: dict = {}, idf_dict: dict = {}) -> dict:
+	"""calculates tf_idf on the series"""
+	# TODO figure out how 
+>>>>>>> d29e2fd45f0c7271d4218ae06bca35a8559a6e33
 
 	chunk_spj(PATH, SAVE_PATH, CHUNKSIZE, multi_core = True, itter_steps = ITTER_STEPS)
 
@@ -146,4 +158,8 @@ End = datetime.now()
 
 Delta = End - Start
 
+<<<<<<< HEAD
 print(Delta)
+=======
+#RW.getDF(PATH, SAVE_PATH, chunk_size = 1000000)
+>>>>>>> d29e2fd45f0c7271d4218ae06bca35a8559a6e33
